@@ -1,0 +1,3 @@
+// Supabase connection info - auto-populated by Figma Make
+export const projectId = 'vfaidwrtmetkgymdqemf';
+export const publicAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmYWlkd3J0bWV0a2d5bWRxZW1mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1NjAyNDMsImV4cCI6MjA5MTEzNjI0M30.kJbEkjpYlFcow3Qu6dpmgDAfZzmcRIdmENFQ_DJw8Pk';
