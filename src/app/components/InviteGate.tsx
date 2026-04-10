@@ -145,7 +145,7 @@ export function InviteGate() {
                   className="mt-1 w-5 h-5 rounded border-white/20 bg-white/5 text-[#0ea5e9] focus:ring-[#0ea5e9] focus:ring-offset-0 cursor-pointer flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
                 <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors leading-relaxed">
-                  I agree to pay for our service to increase your revenue and protect your brand. I comply with the EDGE platform rules.
+                  I agree to pay for EDGE service's using USDC Crypto Currency, to increase my revenue and protect my brand. I comply with the EDGE platform rules.
                 </span>
               </motion.label>
 
