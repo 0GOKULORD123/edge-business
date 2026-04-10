@@ -56,18 +56,38 @@ export function HomePage() {
               <img src={edgeLogo} alt="EDGE" className="h-10 w-auto" />
             </motion.div>
 
-            {/* Sign In Button */}
-            <motion.button
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => navigate('/signin')}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-white/5 transition-colors"
-            >
-              <LogIn className="w-4 h-4" />
-              <span className="hidden sm:inline">Sign In</span>
-            </motion.button>
+            {/* Auth Buttons */}
+            <div className="flex items-center gap-2">
+              <motion.button
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  // Scroll to plans section
+                  const plansSection = document.querySelector('.plans-section');
+                  if (plansSection) {
+                    plansSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
+                }}
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg bg-gradient-to-r from-[#0ea5e9] to-[#8b5cf6] hover:shadow-lg transition-all text-sm sm:text-base"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>Sign Up</span>
+              </motion.button>
+
+              <motion.button
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => navigate('/signin')}
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg hover:bg-white/5 transition-colors text-sm sm:text-base"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>Sign In</span>
+              </motion.button>
+            </div>
           </div>
         </div>
       </nav>
@@ -102,7 +122,7 @@ export function HomePage() {
               transition={{ delay: 0.4 }}
               className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 neon-text"
             >
-              The Edge Your Business Needs
+              Control Your Online Reputation
             </motion.h1>
 
             {/* Subtext */}
@@ -112,20 +132,20 @@ export function HomePage() {
               transition={{ delay: 0.5 }}
               className="text-xl text-muted-foreground mb-8"
             >
-              Control perception. Scale authority. Operate at EDGE.
+              Remove harmful reviews, build trust, and protect your business authority with EDGE.
             </motion.p>
           </div>
 
           {/* Plans Section */}
-          <div className="max-w-5xl mx-auto">
+          <div className="max-w-5xl mx-auto plans-section">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6 }}
               className="text-center mb-12"
             >
-              <h2 className="text-3xl font-bold mb-3">Choose Your Entry Point</h2>
-              <p className="text-muted-foreground">Select a plan to get started</p>
+              <h2 className="text-3xl font-bold mb-3">Choose Your Reputation Management Plan</h2>
+              <p className="text-muted-foreground">Choose Your Level of Reputation Control</p>
               <p className="text-lg font-semibold text-[#0ea5e9] mt-2">1 Review Costs 2 EDGE</p>
             </motion.div>
 
@@ -208,7 +228,7 @@ export function HomePage() {
                 </div>
                 <h3 className="font-bold text-lg mb-2">Permanent Reviews</h3>
                 <p className="text-sm text-muted-foreground">
-                  Authentic, lasting reviews that build trust and authority
+                  Strategically placed reviews that strengthen trust and credibility
                 </p>
               </motion.div>
 
@@ -222,7 +242,7 @@ export function HomePage() {
                 </div>
                 <h3 className="font-bold text-lg mb-2">Review Removal Tool</h3>
                 <p className="text-sm text-muted-foreground">
-                  Clean your reputation by removing negative feedback
+                  Eliminate harmful content damaging your business reputation
                 </p>
               </motion.div>
 
@@ -268,7 +288,8 @@ export function HomePage() {
             </div>
             <p className="text-sm text-muted-foreground mb-2">🔒 Invite-Only Platform</p>
             <p className="text-xs text-muted-foreground max-w-2xl mx-auto">
-              EDGE is a private platform for businesses ready to operate at the highest level. All transactions are secure and anonymous.
+              EDGE is a private reputation management platform for businesses operating at a high level. 
+All activities are handled with discretion, security, and precision.
             </p>
           </motion.div>
         </div>

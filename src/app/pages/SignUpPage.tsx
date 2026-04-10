@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import { ArrowLeft, ChevronRight, Loader2, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
-import paymentQR from '../../assets/d1f691fef65f70cf00a69020cf5f9a5db29724d5.png';
+import paymentQR from '../../assets/2e977c89fb06273c9b7ee869cbd90d9952ad0cb1.png';
 
 export function SignUpPage() {
   const navigate = useNavigate();
@@ -31,6 +31,14 @@ export function SignUpPage() {
       });
     }
   }, []);
+
+  // Redirect if no plan selected
+  useEffect(() => {
+    if (!selectedPlan) {
+      toast.error('Please select a plan first');
+      navigate('/');
+    }
+  }, [selectedPlan, navigate]);
 
   // Step 1 data
   const [username, setUsername] = useState('');
@@ -98,13 +106,23 @@ export function SignUpPage() {
       planName: currentPlan?.name,
       planPrice: currentPlan?.price,
       planCredits: currentPlan?.credits,
+      walletAddress: paymentSettings.walletAddress,
     });
 
     setTimeout(() => {
       setLoading(false);
       if (result.success) {
-        toast.success('Account created! Awaiting admin approval.');
-        navigate('/signin');
+        toast.success('Account created successfully!');
+        // Redirect to activation page with account details
+        navigate('/activate', {
+          state: {
+            username,
+            walletAddress: paymentSettings.walletAddress,
+            plan: currentPlan?.name || 'Standard Plan',
+            price: currentPlan?.price || `$${usdAmount}`,
+            createdAt: new Date().toISOString(),
+          },
+        });
       } else {
         toast.error(result.error || 'Registration failed');
       }
@@ -300,14 +318,25 @@ export function SignUpPage() {
                 {/* Payment Instructions */}
                 <div className="p-6 bg-white/5 rounded-xl border border-white/10">
                   <h3 className="font-semibold mb-4 text-lg">Payment Instructions</h3>
-                  <div className="space-y-3 text-sm">
-                    <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                      <span className="text-muted-foreground">Currency:</span>
-                      <span className="font-semibold text-[#0ea5e9]">USDC</span>
+                  <div className="space-y-4">
+                    <div className="p-4 bg-gradient-to-r from-[#0ea5e9]/10 to-[#8b5cf6]/10 border border-[#0ea5e9]/30 rounded-lg">
+                      <p className="text-sm leading-relaxed">
+                        <span className="font-semibold text-[#0ea5e9]">Transfer the exact amount</span> to the address below.
+                        Wait a few minutes and your account will be <span className="font-semibold">automatically activated</span>.
+                      </p>
+                      <p className="text-sm mt-2 text-yellow-400 font-semibold">
+                        ⏱️ Payment gate valid for 24 hours only.
+                      </p>
                     </div>
-                    <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                      <span className="text-muted-foreground">Network:</span>
-                      <span className="font-semibold text-[#0ea5e9]">Base Network</span>
+                    <div className="space-y-3 text-sm">
+                      <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                        <span className="text-muted-foreground">Currency:</span>
+                        <span className="font-semibold text-[#0ea5e9]">USDC</span>
+                      </div>
+                      <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                        <span className="text-muted-foreground">Network:</span>
+                        <span className="font-semibold text-[#0ea5e9]">Base Network</span>
+                      </div>
                     </div>
                   </div>
                 </div>

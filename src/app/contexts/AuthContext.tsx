@@ -10,8 +10,12 @@ export interface User {
   credits: number;
   status: 'pending' | 'active' | 'suspended';
   selectedPlan?: string;
+  planName?: string;
+  planPrice?: string;
+  planCredits?: number;
   isAdmin: boolean;
   walletAddress?: string;
+  createdAt?: string;
 }
 
 export interface ReviewRequest {
@@ -68,7 +72,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   hasAcceptedInvite: boolean;
   loading: boolean;
-  login: (username: string, password: string) => Promise<boolean>;
+  login: (username: string, password: string) => Promise<{ success: boolean; user?: User }>;
   logout: () => Promise<void>;
   register: (userData: Partial<User> & { username: string; password: string }) => Promise<{ success: boolean; error?: string }>;
   acceptInvite: (code: string) => Promise<boolean>;
@@ -134,11 +138,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const login = async (username: string, password: string): Promise<boolean> => {
+  const login = async (username: string, password: string): Promise<{ success: boolean; user?: User }> => {
     try {
       // Try to login through backend API (which handles username lookup and admin login)
       const response = await authAPI.login(username, password);
       if (response.success) {
+        // If user status is pending, don't set them as logged in
+        if (response.user.status === 'pending') {
+          return { success: true, user: response.user };
+        }
+
         setUser(response.user);
         sessionStorage.setItem('edge_user', JSON.stringify(response.user));
 
@@ -147,12 +156,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           sessionStorage.setItem('edge_session', JSON.stringify(response.session));
         }
 
-        return true;
+        return { success: true, user: response.user };
       }
-      return false;
+      return { success: false };
     } catch (error) {
       console.error('Login failed:', error);
-      return false;
+      return { success: false };
     }
   };
 

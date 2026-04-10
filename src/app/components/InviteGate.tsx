@@ -6,15 +6,20 @@ import { motion, AnimatePresence } from 'motion/react';
 export function InviteGate() {
   const { hasAcceptedInvite, acceptInvite } = useAuth();
   const [code, setCode] = React.useState('');
-  const [agreed, setAgreed] = React.useState(false);
+  const [agreement1, setAgreement1] = React.useState(false);
+  const [agreement2, setAgreement2] = React.useState(false);
+  const [agreement3, setAgreement3] = React.useState(false);
   const [error, setError] = React.useState('');
+
+  const allAgreementsAccepted = agreement1 && agreement2 && agreement3;
+  const canSubmit = allAgreementsAccepted && code.trim() !== '';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (!agreed) {
-      setError('Please agree to the terms & privacy policy');
+    if (!allAgreementsAccepted) {
+      setError('Please agree to all terms');
       return;
     }
 
@@ -86,35 +91,95 @@ export function InviteGate() {
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.6 }}
               onSubmit={handleSubmit}
-              className="space-y-6"
+              className="space-y-5"
             >
-              {/* Agreement Checkbox */}
-              <label className="flex items-start gap-3 cursor-pointer group">
+              {/* Agreement 1 */}
+              <motion.label
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.7 }}
+                className="flex items-start gap-3 cursor-pointer group"
+              >
                 <input
                   type="checkbox"
-                  checked={agreed}
-                  onChange={(e) => setAgreed(e.target.checked)}
-                  className="mt-1 w-5 h-5 rounded border-white/20 bg-white/5 text-[#0ea5e9] focus:ring-[#0ea5e9] focus:ring-offset-0 cursor-pointer"
+                  checked={agreement1}
+                  onChange={(e) => setAgreement1(e.target.checked)}
+                  className="mt-1 w-5 h-5 rounded border-white/20 bg-white/5 text-[#0ea5e9] focus:ring-[#0ea5e9] focus:ring-offset-0 cursor-pointer flex-shrink-0"
                 />
-                <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
-                  I agree to the terms & privacy policy
+                <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors leading-relaxed">
+                  I agree to keep the platform safe and not share any sensitive information without EDGE explicit authorization.
                 </span>
-              </label>
+              </motion.label>
 
-              {/* Invite Code Input */}
-              <div>
-                <label htmlFor="inviteCode" className="block text-sm mb-2">
-                  Invite Code
-                </label>
+              {/* Agreement 2 */}
+              <motion.label
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: agreement1 ? 1 : 0.5, x: 0 }}
+                transition={{ delay: 0.8 }}
+                className={`flex items-start gap-3 cursor-pointer group ${!agreement1 ? 'pointer-events-none' : ''}`}
+              >
                 <input
-                  id="inviteCode"
-                  type="text"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  placeholder="Enter your code"
-                  className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:border-[#0ea5e9] focus:ring-1 focus:ring-[#0ea5e9] outline-none transition-all"
+                  type="checkbox"
+                  checked={agreement2}
+                  onChange={(e) => setAgreement2(e.target.checked)}
+                  disabled={!agreement1}
+                  className="mt-1 w-5 h-5 rounded border-white/20 bg-white/5 text-[#0ea5e9] focus:ring-[#0ea5e9] focus:ring-offset-0 cursor-pointer flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
-              </div>
+                <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors leading-relaxed">
+                  I understand that the platform is built for businesses large and small. We remove negative perception and position your business as premium - guaranteed, discreetly. I agree to the platform's discretion.
+                </span>
+              </motion.label>
+
+              {/* Agreement 3 */}
+              <motion.label
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: agreement1 && agreement2 ? 1 : 0.5, x: 0 }}
+                transition={{ delay: 0.9 }}
+                className={`flex items-start gap-3 cursor-pointer group ${!agreement2 ? 'pointer-events-none' : ''}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={agreement3}
+                  onChange={(e) => setAgreement3(e.target.checked)}
+                  disabled={!agreement2}
+                  className="mt-1 w-5 h-5 rounded border-white/20 bg-white/5 text-[#0ea5e9] focus:ring-[#0ea5e9] focus:ring-offset-0 cursor-pointer flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+                <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors leading-relaxed">
+                  I agree to pay for our service to increase your revenue and protect your brand. I comply with the EDGE platform rules.
+                </span>
+              </motion.label>
+
+              {/* Divider */}
+              <AnimatePresence>
+                {allAgreementsAccepted && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="border-t border-white/10 pt-5"
+                  >
+                    {/* Invite Code Input */}
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 }}
+                    >
+                      <label htmlFor="inviteCode" className="block text-sm mb-2 font-semibold text-[#0ea5e9]">
+                        Enter Your Invite Code
+                      </label>
+                      <input
+                        id="inviteCode"
+                        type="text"
+                        value={code}
+                        onChange={(e) => setCode(e.target.value)}
+                        placeholder="Enter your code"
+                        className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:border-[#0ea5e9] focus:ring-1 focus:ring-[#0ea5e9] outline-none transition-all"
+                        autoFocus
+                      />
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* Error Message */}
               <AnimatePresence>
@@ -132,10 +197,15 @@ export function InviteGate() {
 
               {/* Submit Button */}
               <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={canSubmit ? { scale: 1.02 } : {}}
+                whileTap={canSubmit ? { scale: 0.98 } : {}}
                 type="submit"
-                className="w-full py-4 rounded-lg bg-gradient-to-r from-[#0ea5e9] to-[#8b5cf6] hover:shadow-lg hover:shadow-[#0ea5e9]/50 transition-all duration-300 font-semibold text-lg neon-glow"
+                disabled={!canSubmit}
+                className={`w-full py-4 rounded-lg font-semibold text-lg transition-all duration-300 ${
+                  canSubmit
+                    ? 'bg-gradient-to-r from-[#0ea5e9] to-[#8b5cf6] hover:shadow-lg hover:shadow-[#0ea5e9]/50 neon-glow cursor-pointer'
+                    : 'bg-white/10 opacity-50 cursor-not-allowed'
+                }`}
               >
                 Enter EDGE
               </motion.button>

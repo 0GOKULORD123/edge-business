@@ -151,9 +151,11 @@ app.post("/make-server-037031d9/auth/register", async (c) => {
       planName: userData.planName || '',
       planPrice: userData.planPrice || '',
       planCredits: userData.planCredits || 0,
+      walletAddress: userData.walletAddress || '',
       isAdmin: false,
       credits: 0,
       status: "pending",
+      createdAt: new Date().toISOString(),
     };
     await setStorage(`user:${userId}`, user);
 

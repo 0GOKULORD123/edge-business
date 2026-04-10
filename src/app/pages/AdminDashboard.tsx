@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
-import { authAPI, notificationsAPI, storeAPI, paymentAPI } from '../services/api';
+import { authAPI, notificationsAPI, storeAPI, paymentAPI, inviteAPI } from '../services/api';
 import {
   Users,
   Coins,
@@ -27,7 +27,7 @@ import { toast } from 'sonner';
 import { AdminRequests } from '../components/AdminRequests';
 import { AdminUserManagement } from '../components/AdminUserManagement';
 import { AdminWithdrawals } from '../components/AdminWithdrawals';
-import paymentQRDefault from '../../assets/d1f691fef65f70cf00a69020cf5f9a5db29724d5.png';
+import paymentQRDefault from '../../assets/2e977c89fb06273c9b7ee869cbd90d9952ad0cb1.png';
 import edgeLogo from '../../assets/66374a2ff9f02213db2cda3bff0d1c000bf7c136.png';
 
 interface PendingUser {
@@ -39,8 +39,10 @@ interface PendingUser {
   planName?: string;
   planPrice?: string;
   planCredits?: number;
+  walletAddress?: string;
   status: string;
   credits: number;
+  createdAt?: string;
 }
 
 interface StoreProduct {
@@ -86,6 +88,7 @@ export function AdminDashboard() {
     loadUsers();
     loadPaymentSettings();
     loadStoreProducts();
+    loadInviteCodes();
   }, []);
 
   const loadPaymentSettings = () => {
@@ -106,6 +109,15 @@ export function AdminDashboard() {
       setAllUsers(users);
     } catch (error) {
       console.error('Failed to load users:', error);
+    }
+  };
+
+  const loadInviteCodes = async () => {
+    try {
+      const response = await inviteAPI.getCodes();
+      setInviteCodes(response.codes || []);
+    } catch (error) {
+      console.error('Failed to load invite codes:', error);
     }
   };
 
@@ -154,16 +166,32 @@ export function AdminDashboard() {
     }
   };
 
-  const handleAddInviteCode = () => {
-    if (!newInviteCode) return;
-    setInviteCodes([...inviteCodes, newInviteCode]);
-    setNewInviteCode('');
-    toast.success('Invite code added');
+  const handleAddInviteCode = async () => {
+    if (!newInviteCode.trim()) {
+      toast.error('Please enter an invite code');
+      return;
+    }
+
+    try {
+      const response = await inviteAPI.addCode(newInviteCode.trim());
+      setInviteCodes(response.codes || []);
+      setNewInviteCode('');
+      toast.success('Invite code added and saved to database');
+    } catch (error) {
+      console.error('Failed to add invite code:', error);
+      toast.error('Failed to add invite code');
+    }
   };
 
-  const handleRemoveInviteCode = (code: string) => {
-    setInviteCodes(inviteCodes.filter(c => c !== code));
-    toast.success('Invite code removed');
+  const handleRemoveInviteCode = async (code: string) => {
+    try {
+      const response = await inviteAPI.deleteCode(code);
+      setInviteCodes(response.codes || []);
+      toast.success('Invite code removed from database');
+    } catch (error) {
+      console.error('Failed to remove invite code:', error);
+      toast.error('Failed to remove invite code');
+    }
   };
 
   const handleSendNotification = async (userId: string, message: string) => {

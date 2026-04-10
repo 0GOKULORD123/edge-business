@@ -14,7 +14,7 @@ export function SignInPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!username || !password) {
       toast.error('Please fill in all fields');
       return;
@@ -23,10 +23,25 @@ export function SignInPage() {
     setLoading(true);
 
     setTimeout(async () => {
-      const success = await login(username, password);
+      const result = await login(username, password);
       setLoading(false);
 
-      if (success) {
+      if (result.success) {
+        // Check if user has pending status
+        if (result.user && result.user.status === 'pending') {
+          // Redirect to activation page with user data
+          navigate('/activate', {
+            state: {
+              username: result.user.username,
+              walletAddress: result.user.walletAddress || '0x2a6fd66fa33b9a3e8be38b0f034fa21c14eb330a',
+              plan: result.user.planName || result.user.selectedPlan || 'Standard Plan',
+              price: result.user.planPrice || '$100',
+              createdAt: result.user.createdAt || new Date().toISOString(),
+            },
+          });
+          return;
+        }
+
         toast.success('Welcome back!');
         // Admin goes to admin dashboard, users go to user dashboard
         if (username === 'edgeadmin') {
