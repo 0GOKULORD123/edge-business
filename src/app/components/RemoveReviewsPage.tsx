@@ -53,16 +53,37 @@ export function RemoveReviewsPage() {
 
   // Load Google Maps Extended Component Library
   useEffect(() => {
-    const script = document.createElement('script');
-    script.type = 'module';
-    script.src = 'https://ajax.googleapis.com/ajax/libs/@googlemaps/extended-component-library/0.6.11/index.min.js';
-    script.onload = () => setMapsLoaded(true);
-    document.head.appendChild(script);
+    let mounted = true;
+
+    const loadMaps = async () => {
+      try {
+        // Wait for custom elements to be defined
+        await customElements.whenDefined('gmp-map');
+        await customElements.whenDefined('gmpx-place-picker');
+        await customElements.whenDefined('gmpx-api-loader');
+
+        // Wait for Google Maps API to be available
+        let retries = 0;
+        while (!window.google?.maps && retries < 50) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          retries++;
+        }
+
+        if (mounted && window.google?.maps) {
+          setMapsLoaded(true);
+        } else if (retries >= 50) {
+          console.error('Google Maps API failed to load');
+        }
+      } catch (error) {
+        console.error('Error loading Google Maps:', error);
+      }
+    };
+
+    // Add delay before checking
+    setTimeout(loadMaps, 500);
 
     return () => {
-      if (script.parentNode) {
-        script.parentNode.removeChild(script);
-      }
+      mounted = false;
     };
   }, []);
 
@@ -71,26 +92,37 @@ export function RemoveReviewsPage() {
     if (!mapsLoaded) return;
 
     const initMap = async () => {
-      await customElements.whenDefined('gmp-map');
+      try {
+        await customElements.whenDefined('gmp-map');
 
-      const map = mapRef.current;
-      const marker = markerRef.current;
-      const placePicker = placePickerRef.current;
+        const map = mapRef.current;
+        const marker = markerRef.current;
+        const placePicker = placePickerRef.current;
 
-      if (!map || !marker || !placePicker) return;
+        if (!map || !marker || !placePicker) return;
 
-      // Set map options
-      if (map.innerMap) {
+        // Wait for innerMap to be ready
+        let retries = 0;
+        while (!map.innerMap && retries < 20) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          retries++;
+        }
+
+        if (!map.innerMap) {
+          console.error('Map innerMap not available');
+          return;
+        }
+
+        // Set map options
         map.innerMap.setOptions({
           mapTypeControl: false
         });
-      }
 
-      // Create infowindow
-      const infowindow = new window.google.maps.InfoWindow();
+        // Create infowindow
+        const infowindow = new window.google.maps.InfoWindow();
 
-      // Listen for place changes
-      placePicker.addEventListener('gmpx-placechange', () => {
+        // Listen for place changes
+        placePicker.addEventListener('gmpx-placechange', () => {
         const place = placePicker.value;
 
         if (!place.location) {
@@ -145,6 +177,9 @@ export function RemoveReviewsPage() {
         setReviews(placeReviews);
         toast.success(`Found: ${place.displayName || place.name}`);
       });
+      } catch (error) {
+        console.error('Error initializing map:', error);
+      }
     };
 
     initMap();
@@ -310,6 +345,7 @@ export function RemoveReviewsPage() {
               ref={mapRef}
               center="40.749933,-73.98633"
               zoom="13"
+              map-id="DEMO_MAP_ID"
             >
               <div slot="control-block-start-inline-start" className="place-picker-container">
                 <gmpx-place-picker

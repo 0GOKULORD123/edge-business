@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router';
 import { LogIn, Shield, Trash2, Store, Bot } from 'lucide-react';
 import { motion } from 'motion/react';
 import edgeLogo from '../../assets/66374a2ff9f02213db2cda3bff0d1c000bf7c136.png';
-import { BusinessSearchReviews } from '../components/BusinessSearchReviews';
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -44,8 +43,8 @@ export function HomePage() {
 
   return (
     <div className="min-h-screen">
-        {/* Top Nav */}
-        <nav className="fixed top-0 left-0 right-0 z-40 glass-card border-b border-white/10">
+      {/* Top Nav */}
+      <nav className="fixed top-0 left-0 right-0 z-40 glass-card border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
@@ -136,9 +135,6 @@ export function HomePage() {
               Remove harmful reviews, build trust, and protect your business authority with EDGE.
             </motion.p>
           </div>
-
-          {/* Business Search & Review Management */}
-          <BusinessSearchReviews />
 
           {/* Plans Section */}
           <div className="max-w-5xl mx-auto plans-section">
@@ -292,7 +288,8 @@ export function HomePage() {
             </div>
             <p className="text-sm text-muted-foreground mb-2">🔒 Invite-Only Platform</p>
             <p className="text-xs text-muted-foreground max-w-2xl mx-auto">
-              EDGE is a private reputation management platform for businesses operating at a high level. All activities are handled with discretion, security, and precision.
+              EDGE is a private reputation management platform for businesses operating at a high level. 
+All activities are handled with discretion, security, and precision.
             </p>
           </motion.div>
         </div>

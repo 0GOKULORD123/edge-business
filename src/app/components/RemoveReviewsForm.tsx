@@ -371,10 +371,6 @@ export function RemoveReviewsForm({ onComplete, onCancel }: RemoveReviewsFormPro
                   <div>
                     <label className="block text-sm mb-3 font-semibold">Search for Your Business on Google Maps</label>
                     <div className="google-maps-picker-wrapper">
-                      <gmpx-api-loader
-                        key="AIzaSyAXAsEkmxjc3bBhuYYfyqUGsrNAXYQ7Qp0"
-                        solution-channel="GMP_GE_mapsandplacesautocomplete_v2"
-                      ></gmpx-api-loader>
                       <gmpx-place-picker
                         ref={placePickerRef}
                         placeholder="Enter your business name or address"

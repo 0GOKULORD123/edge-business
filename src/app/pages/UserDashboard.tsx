@@ -34,14 +34,6 @@ import { MobileNavigation } from '../components/MobileNavigation';
 import paymentQRDefault from '../../assets/d1f691fef65f70cf00a69020cf5f9a5db29724d5.png';
 import edgeLogo from '../../assets/66374a2ff9f02213db2cda3bff0d1c000bf7c136.png';
 
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'gmpx-api-loader': any;
-    }
-  }
-}
-
 interface StoreProduct {
   id: string;
   name: string;
@@ -204,11 +196,7 @@ export function UserDashboard() {
   };
 
   return (
-    <>
-      {/* Google Maps API Loader - Single instance for entire page */}
-      <gmpx-api-loader key="AIzaSyAXAsEkmxjc3bBhuYYfyqUGsrNAXYQ7Qp0" />
-
-      <div className="min-h-screen pb-20">
+    <div className="min-h-screen pb-20">
         {/* Notification Banners */}
         <NotificationBanner />
 
@@ -625,7 +613,6 @@ export function UserDashboard() {
           onCancel={() => setShowRemoveReviewsForm(false)}
         />
       )}
-      </div>
-    </>
+    </div>
   );
 }

@@ -11,6 +11,9 @@ declare global {
       'gmp-advanced-marker': any;
     }
   }
+  interface Window {
+    google: any;
+  }
 }
 
 interface Review {
@@ -45,64 +48,78 @@ export function BusinessSearchReviews() {
 
   // Wait for Google Maps to load
   useEffect(() => {
+    let mounted = true;
+
     const checkGoogleMaps = async () => {
-      // Wait for the custom elements to be defined
       try {
+        // Wait for custom elements to be defined
         await customElements.whenDefined('gmp-map');
         await customElements.whenDefined('gmpx-place-picker');
         await customElements.whenDefined('gmpx-api-loader');
 
-        // Small delay to ensure everything is ready
-        setTimeout(() => {
+        // Wait for Google Maps API to be available
+        let retries = 0;
+        while (!window.google?.maps && retries < 50) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          retries++;
+        }
+
+        if (mounted && window.google?.maps) {
           setMapLoaded(true);
-        }, 100);
+        } else if (retries >= 50) {
+          console.error('Google Maps API failed to load');
+        }
       } catch (error) {
         console.error('Error loading Google Maps components:', error);
-        // Retry after a delay
-        setTimeout(checkGoogleMaps, 500);
       }
     };
 
-    // Check if script is already loaded
-    const existingScript = document.querySelector('script[src*="googlemaps/extended-component-library"]');
+    // Add delay before checking
+    setTimeout(checkGoogleMaps, 500);
 
-    if (existingScript) {
-      checkGoogleMaps();
-    } else {
-      // Load the extended component library
-      const script = document.createElement('script');
-      script.type = 'module';
-      script.src = 'https://ajax.googleapis.com/ajax/libs/@googlemaps/extended-component-library/0.6.11/index.min.js';
-      script.onload = () => checkGoogleMaps();
-      document.head.appendChild(script);
-    }
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   // Set up place picker listener
   useEffect(() => {
-    if (!mapLoaded || !placePickerRef.current) return;
+    if (!mapLoaded) return;
 
     const initMap = async () => {
-      await customElements.whenDefined('gmp-map');
-      await customElements.whenDefined('gmpx-place-picker');
+      try {
+        await customElements.whenDefined('gmp-map');
 
-      const map = mapRef.current;
-      const marker = markerRef.current;
-      const placePicker = placePickerRef.current;
+        const map = mapRef.current;
+        const marker = markerRef.current;
+        const placePicker = placePickerRef.current;
 
-      if (!map || !marker || !placePicker) return;
+        if (!map || !marker || !placePicker) {
+          console.log('Missing refs:', { map: !!map, marker: !!marker, placePicker: !!placePicker });
+          return;
+        }
 
-      // Configure map
-      if (map.innerMap) {
+        // Wait for innerMap to be ready
+        let retries = 0;
+        while (!map.innerMap && retries < 20) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          retries++;
+        }
+
+        if (!map.innerMap) {
+          console.error('Map innerMap not available');
+          return;
+        }
+
+        // Configure map
         map.innerMap.setOptions({
           mapTypeControl: false,
           streetViewControl: false,
           fullscreenControl: false,
         });
-      }
 
-      // Listen for place changes
-      placePicker.addEventListener('gmpx-placechange', async () => {
+        // Listen for place changes
+        placePicker.addEventListener('gmpx-placechange', () => {
         const place = placePicker.value;
 
         if (!place.location) {
@@ -155,6 +172,9 @@ export function BusinessSearchReviews() {
         setReviews(placeReviews);
         setIsLoading(false);
       });
+      } catch (error) {
+        console.error('Error initializing map:', error);
+      }
     };
 
     initMap();
@@ -228,6 +248,7 @@ export function BusinessSearchReviews() {
               ref={mapRef}
               center="40.749933,-73.98633"
               zoom="13"
+              map-id="DEMO_MAP_ID"
             >
               <div slot="control-block-start-inline-start" className="place-picker-container">
                 <gmpx-place-picker
