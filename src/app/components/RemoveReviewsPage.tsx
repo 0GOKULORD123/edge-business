@@ -1,8 +1,23 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { MapPin, Upload, X, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
+
+// Declare Google Maps types for TypeScript
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      'gmpx-api-loader': any;
+      'gmp-map': any;
+      'gmpx-place-picker': any;
+      'gmp-advanced-marker': any;
+    }
+  }
+  interface Window {
+    google: any;
+  }
+}
 
 interface Review {
   id: string;
@@ -22,8 +37,6 @@ interface BusinessData {
 
 export function RemoveReviewsPage() {
   const { user, createRequest, updateUser } = useAuth();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searching, setSearching] = useState(false);
   const [businessData, setBusinessData] = useState<BusinessData | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [selectedReviews, setSelectedReviews] = useState<string[]>([]);
@@ -31,41 +44,112 @@ export function RemoveReviewsPage() {
   const [manualReviewCount, setManualReviewCount] = useState<number>(1);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mapRef = useRef<any>(null);
+  const placePickerRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
+  const [mapsLoaded, setMapsLoaded] = useState(false);
 
   const CREDIT_PER_REVIEW = 5;
 
-  // Google Maps search using Places API
-  const handleSearchBusiness = async () => {
-    if (!searchQuery.trim()) {
-      toast.error('Please enter a business name');
-      return;
-    }
+  // Load Google Maps Extended Component Library
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.type = 'module';
+    script.src = 'https://ajax.googleapis.com/ajax/libs/@googlemaps/extended-component-library/0.6.11/index.min.js';
+    script.onload = () => setMapsLoaded(true);
+    document.head.appendChild(script);
 
-    setSearching(true);
-    setBusinessData(null);
-    setReviews([]);
-    setSelectedReviews([]);
+    return () => {
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+    };
+  }, []);
 
-    try {
-      // TODO: Integrate with Google Maps Places API
-      // For now, show a message that this needs API integration
-      toast.info('Google Maps integration pending - Admin will configure API');
+  // Initialize Google Maps interactions
+  useEffect(() => {
+    if (!mapsLoaded) return;
 
-      // Simulate search delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+    const initMap = async () => {
+      await customElements.whenDefined('gmp-map');
 
-      // This is where real Google Maps API call would go
-      // const service = new google.maps.places.PlacesService(map);
-      // service.findPlaceFromQuery({ query: searchQuery, fields: ['name', 'place_id', 'formatted_address'] }, callback);
+      const map = mapRef.current;
+      const marker = markerRef.current;
+      const placePicker = placePickerRef.current;
 
-      toast.error('Google Maps API not configured. Please contact admin to set up API access.');
-    } catch (error) {
-      console.error('Search error:', error);
-      toast.error('Failed to search business');
-    } finally {
-      setSearching(false);
-    }
-  };
+      if (!map || !marker || !placePicker) return;
+
+      // Set map options
+      if (map.innerMap) {
+        map.innerMap.setOptions({
+          mapTypeControl: false
+        });
+      }
+
+      // Create infowindow
+      const infowindow = new window.google.maps.InfoWindow();
+
+      // Listen for place changes
+      placePicker.addEventListener('gmpx-placechange', () => {
+        const place = placePicker.value;
+
+        if (!place.location) {
+          toast.error("No details available for: '" + place.name + "'");
+          infowindow.close();
+          marker.position = null;
+          return;
+        }
+
+        // Update map view
+        if (place.viewport) {
+          map.innerMap.fitBounds(place.viewport);
+        } else {
+          map.center = place.location;
+          map.zoom = 17;
+        }
+
+        // Update marker
+        marker.position = place.location;
+
+        // Show info window
+        infowindow.setContent(
+          `<strong>${place.displayName}</strong><br>
+           <span>${place.formattedAddress}</span>`
+        );
+        infowindow.open(map.innerMap, marker);
+
+        // Update business data
+        setBusinessData({
+          name: place.displayName || place.name || '',
+          address: place.formattedAddress || '',
+          rating: place.rating || 0,
+          totalReviews: place.userRatingCount || 0,
+          placeId: place.id || ''
+        });
+
+        // Extract real reviews from the place data
+        const placeReviews: Review[] = [];
+
+        if (place.reviews && place.reviews.length > 0) {
+          place.reviews.forEach((review: any, index: number) => {
+            placeReviews.push({
+              id: `review-${index}`,
+              reviewer: review.authorAttribution?.displayName || 'Anonymous',
+              rating: review.rating || 0,
+              text: review.text?.text || review.text || 'No review text',
+              date: review.relativePublishTimeDescription || 'Recently',
+            });
+          });
+        }
+
+        setReviews(placeReviews);
+        toast.success(`Found: ${place.displayName || place.name}`);
+      });
+    };
+
+    initMap();
+  }, [mapsLoaded]);
+
 
   const toggleReviewSelection = (reviewId: string) => {
     setSelectedReviews(prev =>
@@ -123,7 +207,6 @@ export function RemoveReviewsPage() {
       setBusinessData(null);
       setReviews([]);
       setSelectedReviews([]);
-      setSearchQuery('');
     } catch (error) {
       console.error('Failed to submit request:', error);
       toast.error('Failed to submit request');
@@ -191,56 +274,51 @@ export function RemoveReviewsPage() {
   };
 
   return (
-    <div className="space-y-8">
-      {/* Google Maps Section */}
-      <div className="glass-card rounded-2xl p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <MapPin className="w-6 h-6 text-[#0ea5e9]" />
-          <h3 className="text-xl font-bold">Search Business on Google Maps</h3>
-        </div>
+    <>
+      <style>{`
+        gmp-map {
+          width: 100%;
+          height: 500px;
+          display: block;
+        }
 
-        {/* Search Input */}
-        <div className="space-y-4">
-          <div className="flex gap-3">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearchBusiness()}
-              placeholder="Enter business name (e.g., 'Starbucks New York')"
-              className="flex-1 px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:border-[#0ea5e9] focus:ring-1 focus:ring-[#0ea5e9] outline-none transition-all"
-            />
-            <button
-              onClick={handleSearchBusiness}
-              disabled={searching || !searchQuery.trim()}
-              className="px-6 py-3 rounded-lg bg-gradient-to-r from-[#0ea5e9] to-[#8b5cf6] hover:shadow-lg hover:shadow-[#0ea5e9]/50 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {searching ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Searching...
-                </>
-              ) : (
-                'Search'
-              )}
-            </button>
+        .place-picker-container {
+          padding: 20px;
+        }
+      `}</style>
+
+      <div className="space-y-8">
+        {/* Google Maps Section */}
+        <div className="glass-card rounded-2xl p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <MapPin className="w-6 h-6 text-[#0ea5e9]" />
+            <h3 className="text-xl font-bold">Search Business on Google Maps</h3>
           </div>
 
-          {/* Google Maps Embed Placeholder */}
-          <div className="relative w-full h-96 rounded-lg bg-white/5 border border-white/10 overflow-hidden">
-            {businessData ? (
-              <div className="w-full h-full">
-                {/* TODO: Embed actual Google Maps iframe */}
-                <div className="flex items-center justify-center h-full">
-                  <p className="text-muted-foreground">Google Maps will be displayed here</p>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full">
-                <MapPin className="w-16 h-16 text-muted-foreground opacity-30 mb-4" />
-                <p className="text-muted-foreground">Search for a business to view on map</p>
+          {/* Google Maps with Place Picker */}
+          <div className="space-y-4">
+
+          {/* Live Google Maps */}
+          <div className="relative w-full rounded-lg overflow-hidden border border-white/10 bg-white/5">
+            {!mapsLoaded && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
+                <Loader2 className="w-12 h-12 animate-spin text-[#0ea5e9] mb-3" />
+                <p className="text-sm text-muted-foreground">Loading Google Maps...</p>
               </div>
             )}
+            <gmp-map
+              ref={mapRef}
+              center="40.749933,-73.98633"
+              zoom="13"
+            >
+              <div slot="control-block-start-inline-start" className="place-picker-container">
+                <gmpx-place-picker
+                  ref={placePickerRef}
+                  placeholder="Search for your business..."
+                />
+              </div>
+              <gmp-advanced-marker ref={markerRef} />
+            </gmp-map>
           </div>
 
           {/* Business Info & Reviews */}
@@ -465,5 +543,6 @@ export function RemoveReviewsPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

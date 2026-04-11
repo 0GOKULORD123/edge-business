@@ -1,8 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Search, Loader2, Star, Upload, X, ChevronRight, MapPin, FileImage } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
+
+// Declare Google Maps types
+declare global {
+  interface Window {
+    google: any;
+  }
+}
 
 interface RemoveReviewsFormProps {
   onComplete: () => void;
@@ -36,75 +43,127 @@ export function RemoveReviewsForm({ onComplete, onCancel }: RemoveReviewsFormPro
   const [evidenceFiles, setEvidenceFiles] = useState<{ name: string; url: string; type: string }[]>([]);
   const [manualFiles, setManualFiles] = useState<{ name: string; url: string; type: string }[]>([]);
   const [businessData, setBusinessData] = useState<BusinessData | null>(null);
+  const [mapsLoaded, setMapsLoaded] = useState(false);
+  const placePickerRef = useRef<any>(null);
 
   const CREDIT_PER_REVIEW = 5; // Cost per review removal (1 review removal = $50 = 5 EDGE)
 
   const totalCost = uploadMethod === 'manual' ? CREDIT_PER_REVIEW : selectedReviews.length * CREDIT_PER_REVIEW;
 
-  const handleSearchBusiness = () => {
-    if (!searchQuery) {
-      toast.error('Please enter a business name to search');
+  // Load Google Maps Extended Component Library
+  useEffect(() => {
+    if (mapsLoaded) return;
+
+    const script = document.createElement('script');
+    script.type = 'module';
+    script.src = 'https://ajax.googleapis.com/ajax/libs/@googlemaps/extended-component-library/0.6.11/index.min.js';
+    script.onload = () => {
+      setMapsLoaded(true);
+    };
+    document.head.appendChild(script);
+
+    return () => {
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+    };
+  }, []);
+
+  // Set up place picker event listener
+  useEffect(() => {
+    if (!mapsLoaded || step !== 'input') return;
+
+    const setupPlacePicker = async () => {
+      await customElements.whenDefined('gmpx-place-picker');
+
+      const picker = document.querySelector('gmpx-place-picker');
+      if (!picker) return;
+
+      const handlePlaceChange = () => {
+        const place = (picker as any).value;
+        if (place) {
+          handlePlaceSelect(place);
+        }
+      };
+
+      picker.addEventListener('gmpx-placechange', handlePlaceChange);
+
+      return () => {
+        picker.removeEventListener('gmpx-placechange', handlePlaceChange);
+      };
+    };
+
+    setupPlacePicker();
+  }, [mapsLoaded, step]);
+
+  // Handle place selection
+  const handlePlaceSelect = async (place: any) => {
+    if (!place || !place.location) {
+      toast.error('No details available for selected place');
       return;
     }
 
     setStep('scanning');
+    setBusinessData({
+      name: place.displayName || place.name || '',
+      address: place.formattedAddress || '',
+      rating: 0,
+      totalReviews: 0,
+      placeId: place.id || '',
+    });
 
-    // Simulate Google Maps search and business data extraction
-    setTimeout(() => {
-      // Mock business data
-      const mockBusiness: BusinessData = {
-        name: searchQuery,
-        address: '123 Main St, New York, NY 10001',
-        rating: 3.2,
-        totalReviews: 247,
-        placeId: 'ChIJ' + Math.random().toString(36).substr(2, 9),
-      };
+    // Fetch place details including reviews
+    try {
+      const service = new window.google.maps.places.PlacesService(document.createElement('div'));
+      service.getDetails(
+        {
+          placeId: place.id,
+          fields: ['name', 'formatted_address', 'rating', 'user_ratings_total', 'reviews', 'place_id'],
+        },
+        (placeDetails: any, status: any) => {
+          if (status === window.google.maps.places.PlacesServiceStatus.OK && placeDetails) {
+            const businessInfo: BusinessData = {
+              name: placeDetails.name || '',
+              address: placeDetails.formatted_address || '',
+              rating: placeDetails.rating || 0,
+              totalReviews: placeDetails.user_ratings_total || 0,
+              placeId: placeDetails.place_id || '',
+            };
+            setBusinessData(businessInfo);
 
-      setBusinessData(mockBusiness);
+            // Extract negative reviews (rating <= 2)
+            const reviews = placeDetails.reviews || [];
+            const negativeReviews: MockReview[] = reviews
+              .filter((review: any) => review.rating <= 2)
+              .map((review: any, index: number) => ({
+                id: `review-${index}-${Date.now()}`,
+                reviewer: review.author_name || 'Anonymous',
+                rating: review.rating,
+                text: review.text || '',
+                date: review.relative_time_description || 'Recently',
+              }));
 
-      // Mock review data
-      const mockReviews: MockReview[] = [
-        {
-          id: '1',
-          reviewer: 'John D.',
-          rating: 1,
-          text: 'Terrible service. Would not recommend at all. Staff was rude and unprofessional.',
-          date: '2 weeks ago',
-        },
-        {
-          id: '2',
-          reviewer: 'Sarah M.',
-          rating: 2,
-          text: 'Very disappointed with the quality. Not worth the price.',
-          date: '1 month ago',
-        },
-        {
-          id: '3',
-          reviewer: 'Mike R.',
-          rating: 1,
-          text: 'Worst experience ever. Avoid this place!',
-          date: '3 weeks ago',
-        },
-        {
-          id: '4',
-          reviewer: 'Lisa K.',
-          rating: 2,
-          text: 'Poor customer service. Long wait times and unhelpful staff.',
-          date: '1 week ago',
-        },
-        {
-          id: '5',
-          reviewer: 'Tom B.',
-          rating: 1,
-          text: 'Complete waste of money. Do not trust this business.',
-          date: '4 days ago',
-        },
-      ];
+            if (negativeReviews.length === 0) {
+              toast.success('Great news! No negative reviews found.');
+              setStep('input');
+              return;
+            }
 
-      setScanResults(mockReviews);
-      setStep('results');
-    }, 3000);
+            setScanResults(negativeReviews);
+            setStep('results');
+          } else {
+            toast.error('Failed to fetch business details');
+            setStep('input');
+          }
+        }
+      );
+    } catch (error) {
+      console.error('Error fetching place details:', error);
+      toast.error('Failed to load reviews');
+      setStep('input');
+    }
   };
+
 
   const toggleReview = (reviewId: string) => {
     setSelectedReviews((prev) =>
@@ -199,13 +258,40 @@ export function RemoveReviewsForm({ onComplete, onCancel }: RemoveReviewsFormPro
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="w-full max-w-3xl glass-card rounded-2xl p-6 sm:p-8 max-h-[90vh] overflow-y-auto"
-      >
+    <>
+      <style>
+        {`
+          gmpx-place-picker {
+            --gmpx-color-surface: rgba(255, 255, 255, 0.05);
+            --gmpx-color-on-surface: #ffffff;
+            --gmpx-color-on-surface-variant: rgba(255, 255, 255, 0.6);
+            --gmpx-color-primary: #0ea5e9;
+            --gmpx-font-family-base: inherit;
+            --gmpx-font-size-base: 14px;
+          }
+
+          gmpx-place-picker::part(input) {
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.5rem;
+            color: white;
+            padding: 12px 16px;
+          }
+
+          gmpx-place-picker::part(input):focus {
+            border-color: #0ea5e9;
+            outline: none;
+            box-shadow: 0 0 0 1px #0ea5e9;
+          }
+        `}
+      </style>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          className="w-full max-w-3xl glass-card rounded-2xl p-6 sm:p-8 max-h-[90vh] overflow-y-auto"
+        >
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold neon-text">Remove Reviews</h2>
@@ -275,32 +361,52 @@ export function RemoveReviewsForm({ onComplete, onCancel }: RemoveReviewsFormPro
               exit={{ opacity: 0 }}
               className="space-y-6"
             >
-              <div>
-                <label className="block text-sm mb-2">Search for Your Business on Google Maps</label>
-                <div className="flex gap-3">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Enter business name..."
-                    className="flex-1 px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:border-[#0ea5e9] focus:ring-1 focus:ring-[#0ea5e9] outline-none transition-all"
-                    onKeyPress={(e) => e.key === 'Enter' && handleSearchBusiness()}
-                  />
-                  <button
-                    onClick={handleSearchBusiness}
-                    className="px-6 py-3 bg-gradient-to-r from-[#0ea5e9] to-[#8b5cf6] hover:shadow-lg hover:shadow-[#0ea5e9]/50 rounded-lg transition-all font-semibold flex items-center gap-2"
-                  >
-                    <Search className="w-5 h-5" />
-                    Search
-                  </button>
+              {!mapsLoaded ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-[#0ea5e9] mb-3" />
+                  <p className="text-sm text-muted-foreground">Loading Google Maps...</p>
                 </div>
-              </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm mb-3 font-semibold">Search for Your Business on Google Maps</label>
+                    <div className="google-maps-picker-wrapper">
+                      <gmpx-api-loader
+                        key="AIzaSyAXAsEkmxjc3bBhuYYfyqUGsrNAXYQ7Qp0"
+                        solution-channel="GMP_GE_mapsandplacesautocomplete_v2"
+                      ></gmpx-api-loader>
+                      <gmpx-place-picker
+                        ref={placePickerRef}
+                        placeholder="Enter your business name or address"
+                        style={{
+                          width: '100%',
+                          padding: '12px 16px',
+                          borderRadius: '0.5rem',
+                          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          color: 'white',
+                          fontSize: '14px',
+                        }}
+                      ></gmpx-place-picker>
+                    </div>
+                  </div>
 
-              <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-                <p className="text-sm text-muted-foreground">
-                  Enter your business name to search on Google Maps. We'll find your business and scan all reviews.
-                </p>
-              </div>
+                  <div className="p-4 bg-gradient-to-r from-[#0ea5e9]/10 to-[#8b5cf6]/10 border border-[#0ea5e9]/30 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <MapPin className="w-5 h-5 text-[#0ea5e9] mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-semibold mb-1">How it works:</p>
+                        <ol className="text-sm text-muted-foreground space-y-1">
+                          <li>1. Search and select your business from Google Maps</li>
+                          <li>2. We'll scan all reviews and identify negative ones</li>
+                          <li>3. Select which reviews you want removed</li>
+                          <li>4. Submit your request and we'll handle the rest</li>
+                        </ol>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
 
               <button
                 onClick={() => setStep('method')}
@@ -577,5 +683,6 @@ export function RemoveReviewsForm({ onComplete, onCancel }: RemoveReviewsFormPro
         </AnimatePresence>
       </motion.div>
     </div>
+    </>
   );
 }
