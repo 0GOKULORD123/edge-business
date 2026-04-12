@@ -47,82 +47,27 @@ export function RemoveReviewsPage() {
   const mapRef = useRef<any>(null);
   const placePickerRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
-  const [mapsLoaded, setMapsLoaded] = useState(false);
 
   const CREDIT_PER_REVIEW = 5;
 
-  // Load Google Maps Extended Component Library
-  useEffect(() => {
-    let mounted = true;
-
-    const loadMaps = async () => {
-      try {
-        // Wait for custom elements to be defined
-        await customElements.whenDefined('gmp-map');
-        await customElements.whenDefined('gmpx-place-picker');
-        await customElements.whenDefined('gmpx-api-loader');
-
-        // Wait for Google Maps API to be available
-        let retries = 0;
-        while (!window.google?.maps && retries < 50) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-          retries++;
-        }
-
-        if (mounted && window.google?.maps) {
-          setMapsLoaded(true);
-        } else if (retries >= 50) {
-          console.error('Google Maps API failed to load');
-        }
-      } catch (error) {
-        console.error('Error loading Google Maps:', error);
-      }
-    };
-
-    // Add delay before checking
-    setTimeout(loadMaps, 500);
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
   // Initialize Google Maps interactions
   useEffect(() => {
-    if (!mapsLoaded) return;
-
     const initMap = async () => {
-      try {
-        await customElements.whenDefined('gmp-map');
+      await customElements.whenDefined('gmp-map');
 
-        const map = mapRef.current;
-        const marker = markerRef.current;
-        const placePicker = placePickerRef.current;
+      const map = mapRef.current;
+      const marker = markerRef.current;
+      const placePicker = placePickerRef.current;
 
-        if (!map || !marker || !placePicker) return;
+      if (!map || !marker || !placePicker) return;
 
-        // Wait for innerMap to be ready
-        let retries = 0;
-        while (!map.innerMap && retries < 20) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-          retries++;
-        }
+      const infowindow = new window.google.maps.InfoWindow();
 
-        if (!map.innerMap) {
-          console.error('Map innerMap not available');
-          return;
-        }
+      map.innerMap.setOptions({
+        mapTypeControl: false
+      });
 
-        // Set map options
-        map.innerMap.setOptions({
-          mapTypeControl: false
-        });
-
-        // Create infowindow
-        const infowindow = new window.google.maps.InfoWindow();
-
-        // Listen for place changes
-        placePicker.addEventListener('gmpx-placechange', () => {
+      placePicker.addEventListener('gmpx-placechange', () => {
         const place = placePicker.value;
 
         if (!place.location) {
@@ -132,7 +77,6 @@ export function RemoveReviewsPage() {
           return;
         }
 
-        // Update map view
         if (place.viewport) {
           map.innerMap.fitBounds(place.viewport);
         } else {
@@ -140,17 +84,15 @@ export function RemoveReviewsPage() {
           map.zoom = 17;
         }
 
-        // Update marker
         marker.position = place.location;
 
-        // Show info window
-        infowindow.setContent(
-          `<strong>${place.displayName}</strong><br>
-           <span>${place.formattedAddress}</span>`
-        );
+        infowindow.setContent(`
+          <strong>${place.displayName}</strong><br/>
+          <span>${place.formattedAddress}</span>
+        `);
+
         infowindow.open(map.innerMap, marker);
 
-        // Update business data
         setBusinessData({
           name: place.displayName || place.name || '',
           address: place.formattedAddress || '',
@@ -177,13 +119,10 @@ export function RemoveReviewsPage() {
         setReviews(placeReviews);
         toast.success(`Found: ${place.displayName || place.name}`);
       });
-      } catch (error) {
-        console.error('Error initializing map:', error);
-      }
     };
 
     initMap();
-  }, [mapsLoaded]);
+  }, []);
 
 
   const toggleReviewSelection = (reviewId: string) => {
@@ -335,12 +274,11 @@ export function RemoveReviewsPage() {
 
           {/* Live Google Maps */}
           <div className="relative w-full rounded-lg overflow-hidden border border-white/10 bg-white/5">
-            {!mapsLoaded && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
-                <Loader2 className="w-12 h-12 animate-spin text-[#0ea5e9] mb-3" />
-                <p className="text-sm text-muted-foreground">Loading Google Maps...</p>
-              </div>
-            )}
+            <gmpx-api-loader
+              key="AIzaSyCdcJw0VNCxMwtiJmGu3dDsDcgnH4_0AD8"
+              solution-channel="GMP_GE_mapsandplacesautocomplete_v2"
+            />
+
             <gmp-map
               ref={mapRef}
               center="40.749933,-73.98633"

@@ -41,102 +41,52 @@ export function BusinessSearchReviews() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [selectedReviews, setSelectedReviews] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
-  const [mapLoaded, setMapLoaded] = useState(false);
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
   const placePickerRef = useRef<any>(null);
 
-  // Wait for Google Maps to load
   useEffect(() => {
-    let mounted = true;
+    const init = async () => {
+      await customElements.whenDefined('gmp-map');
 
-    const checkGoogleMaps = async () => {
-      try {
-        // Wait for custom elements to be defined
-        await customElements.whenDefined('gmp-map');
-        await customElements.whenDefined('gmpx-place-picker');
-        await customElements.whenDefined('gmpx-api-loader');
+      const map = mapRef.current;
+      const marker = markerRef.current;
+      const placePicker = placePickerRef.current;
 
-        // Wait for Google Maps API to be available
-        let retries = 0;
-        while (!window.google?.maps && retries < 50) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-          retries++;
-        }
+      if (!map || !marker || !placePicker) return;
 
-        if (mounted && window.google?.maps) {
-          setMapLoaded(true);
-        } else if (retries >= 50) {
-          console.error('Google Maps API failed to load');
-        }
-      } catch (error) {
-        console.error('Error loading Google Maps components:', error);
-      }
-    };
+      const infowindow = new window.google.maps.InfoWindow();
 
-    // Add delay before checking
-    setTimeout(checkGoogleMaps, 500);
+      map.innerMap.setOptions({
+        mapTypeControl: false,
+      });
 
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  // Set up place picker listener
-  useEffect(() => {
-    if (!mapLoaded) return;
-
-    const initMap = async () => {
-      try {
-        await customElements.whenDefined('gmp-map');
-
-        const map = mapRef.current;
-        const marker = markerRef.current;
-        const placePicker = placePickerRef.current;
-
-        if (!map || !marker || !placePicker) {
-          console.log('Missing refs:', { map: !!map, marker: !!marker, placePicker: !!placePicker });
-          return;
-        }
-
-        // Wait for innerMap to be ready
-        let retries = 0;
-        while (!map.innerMap && retries < 20) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-          retries++;
-        }
-
-        if (!map.innerMap) {
-          console.error('Map innerMap not available');
-          return;
-        }
-
-        // Configure map
-        map.innerMap.setOptions({
-          mapTypeControl: false,
-          streetViewControl: false,
-          fullscreenControl: false,
-        });
-
-        // Listen for place changes
-        placePicker.addEventListener('gmpx-placechange', () => {
+      placePicker.addEventListener('gmpx-placechange', () => {
         const place = placePicker.value;
 
         if (!place.location) {
+          infowindow.close();
+          marker.position = null;
           return;
         }
 
         setIsLoading(true);
 
-        // Update map
-        if (place.viewport && map.innerMap) {
+        if (place.viewport) {
           map.innerMap.fitBounds(place.viewport);
-        } else if (place.location) {
+        } else {
           map.center = place.location;
           map.zoom = 17;
         }
 
         marker.position = place.location;
+
+        infowindow.setContent(`
+          <strong>${place.displayName}</strong><br/>
+          <span>${place.formattedAddress}</span>
+        `);
+
+        infowindow.open(map.innerMap, marker);
 
         // Get real reviews from the place data
         const placeReviews: Review[] = [];
@@ -172,13 +122,10 @@ export function BusinessSearchReviews() {
         setReviews(placeReviews);
         setIsLoading(false);
       });
-      } catch (error) {
-        console.error('Error initializing map:', error);
-      }
     };
 
-    initMap();
-  }, [mapLoaded]);
+    init();
+  }, []);
 
   const toggleReviewSelection = (reviewId: string) => {
     const newSelected = new Set(selectedReviews);
@@ -242,41 +189,38 @@ export function BusinessSearchReviews() {
         </div>
 
         {/* Map Container */}
-        {mapLoaded ? (
-          <div className="mb-8 rounded-xl overflow-hidden border border-white/10 relative">
-            <gmp-map
-              ref={mapRef}
-              center="40.749933,-73.98633"
-              zoom="13"
-              map-id="DEMO_MAP_ID"
-            >
-              <div slot="control-block-start-inline-start" className="place-picker-container">
-                <gmpx-place-picker
-                  ref={placePickerRef}
-                  placeholder="Search for your business..."
-                />
-              </div>
-              <gmp-advanced-marker ref={markerRef} />
-            </gmp-map>
+        <div className="mb-8 rounded-xl overflow-hidden border border-white/10 relative">
+          <gmpx-api-loader
+            key="AIzaSyCdcJw0VNCxMwtiJmGu3dDsDcgnH4_0AD8"
+            solution-channel="GMP_GE_mapsandplacesautocomplete_v2"
+          />
 
-            {/* Loading Overlay */}
-            {isLoading && (
-              <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-10">
-                <div className="flex items-center gap-3 bg-white/10 px-6 py-3 rounded-lg">
-                  <div className="w-5 h-5 border-2 border-[#0ea5e9] border-t-transparent rounded-full animate-spin" />
-                  <span className="text-white font-semibold">Loading business data...</span>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="mb-8 rounded-xl overflow-hidden border border-white/10 h-[300px] sm:h-[500px] flex items-center justify-center bg-white/5">
-            <div className="flex items-center gap-3">
-              <div className="w-5 h-5 border-2 border-[#0ea5e9] border-t-transparent rounded-full animate-spin" />
-              <span className="text-white font-semibold">Loading map...</span>
+          <gmp-map
+            ref={mapRef}
+            center="40.749933,-73.98633"
+            zoom="13"
+            map-id="DEMO_MAP_ID"
+          >
+            <div slot="control-block-start-inline-start" className="place-picker-container">
+              <gmpx-place-picker
+                ref={placePickerRef}
+                placeholder="Search for your business..."
+              />
             </div>
-          </div>
-        )}
+
+            <gmp-advanced-marker ref={markerRef} />
+          </gmp-map>
+
+          {/* Loading Overlay */}
+          {isLoading && (
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-10">
+              <div className="flex items-center gap-3 bg-white/10 px-6 py-3 rounded-lg">
+                <div className="w-5 h-5 border-2 border-[#0ea5e9] border-t-transparent rounded-full animate-spin" />
+                <span className="text-white font-semibold">Loading business data...</span>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Business Info & Reviews */}
         <AnimatePresence>
