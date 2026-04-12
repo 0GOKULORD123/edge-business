@@ -53,13 +53,29 @@ export function RemoveReviewsPage() {
   // Initialize Google Maps interactions
   useEffect(() => {
     const initMap = async () => {
+      // WAIT for web components
       await customElements.whenDefined('gmp-map');
+
+      // 🔥 WAIT for GOOGLE to actually load (THIS WAS MISSING)
+      let retries = 0;
+      while (!window.google?.maps && retries < 50) {
+        await new Promise(res => setTimeout(res, 100));
+        retries++;
+      }
+
+      if (!window.google?.maps) {
+        console.error("Google Maps NOT loaded");
+        return;
+      }
 
       const map = mapRef.current;
       const marker = markerRef.current;
       const placePicker = placePickerRef.current;
 
-      if (!map || !marker || !placePicker) return;
+      if (!map || !marker || !placePicker) {
+        console.log("Missing refs", { map, marker, placePicker });
+        return;
+      }
 
       const infowindow = new window.google.maps.InfoWindow();
 
@@ -71,7 +87,7 @@ export function RemoveReviewsPage() {
         const place = placePicker.value;
 
         if (!place.location) {
-          toast.error("No details available for: '" + place.name + "'");
+          toast.error("No details available");
           infowindow.close();
           marker.position = null;
           return;
@@ -93,6 +109,7 @@ export function RemoveReviewsPage() {
 
         infowindow.open(map.innerMap, marker);
 
+        // ✅ KEEP YOUR LOGIC
         setBusinessData({
           name: place.displayName || place.name || '',
           address: place.formattedAddress || '',
@@ -101,7 +118,6 @@ export function RemoveReviewsPage() {
           placeId: place.id || ''
         });
 
-        // Extract real reviews from the place data
         const placeReviews: Review[] = [];
 
         if (place.reviews && place.reviews.length > 0) {

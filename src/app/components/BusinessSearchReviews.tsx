@@ -47,13 +47,29 @@ export function BusinessSearchReviews() {
 
   useEffect(() => {
     const init = async () => {
+      // WAIT for web components
       await customElements.whenDefined('gmp-map');
+
+      // 🔥 WAIT for GOOGLE to actually load (THIS WAS MISSING)
+      let retries = 0;
+      while (!window.google?.maps && retries < 50) {
+        await new Promise(res => setTimeout(res, 100));
+        retries++;
+      }
+
+      if (!window.google?.maps) {
+        console.error("Google Maps NOT loaded");
+        return;
+      }
 
       const map = mapRef.current;
       const marker = markerRef.current;
       const placePicker = placePickerRef.current;
 
-      if (!map || !marker || !placePicker) return;
+      if (!map || !marker || !placePicker) {
+        console.log("Missing refs", { map, marker, placePicker });
+        return;
+      }
 
       const infowindow = new window.google.maps.InfoWindow();
 
